@@ -27,7 +27,8 @@ const RegisterTab: React.FC<RegisterTabProps> = ({ onRegister, users }) => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
       setStream(mediaStream);
-    } catch (err) {
+    // FIX: Explicitly typing the 'err' parameter in the catch block to resolve a potential parsing issue that caused numerous scope-related errors.
+    } catch (err: any) {
       console.error("Camera access denied:", err);
       setError("Camera access is required. Please enable it in your browser settings.");
     }
@@ -50,6 +51,14 @@ const RegisterTab: React.FC<RegisterTabProps> = ({ onRegister, users }) => {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRegName(e.target.value);
+    // Clear error message as soon as user starts typing a new name
+    if (error) {
+      setError(null);
+    }
+  };
   
   const handleStartRegistration = () => {
     const trimmedName = regName.trim();
@@ -107,7 +116,7 @@ const RegisterTab: React.FC<RegisterTabProps> = ({ onRegister, users }) => {
           <input
             type="text"
             value={regName}
-            onChange={(e) => setRegName(e.target.value)}
+            onChange={handleNameChange}
             placeholder="Enter full name"
             className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
