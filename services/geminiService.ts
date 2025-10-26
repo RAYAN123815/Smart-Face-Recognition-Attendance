@@ -121,8 +121,8 @@ export const verifyUserWithAi = async (capturedImageBase64: string, users: User[
 
         console.log(`Final match score for ${user.name}: ${matchScore}`);
 
-        // Require at least 2 of the 3 images to be a definite match
-        if (matchScore >= 2) {
+        // Require all 3 of the registered images to be a definite match
+        if (matchScore === 3) {
             console.log(`AI match CONFIRMED for user: ${user.name}`);
             return user; // Match found
         } else {

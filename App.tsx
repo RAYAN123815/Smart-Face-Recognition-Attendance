@@ -47,8 +47,10 @@ const App: React.FC = () => {
   };
 
   const handleClearData = () => {
+    // Explicitly remove data from localStorage to ensure persistence.
     localStorage.removeItem('face-attendance-users');
     localStorage.removeItem('face-attendance-records');
+    // Update state to reflect the change in the UI.
     setUsers([]);
     setAttendance([]);
   };
@@ -56,8 +58,11 @@ const App: React.FC = () => {
   const handleClearTodaysAttendance = () => {
     const today = new Date().toDateString();
     const updatedAttendance = attendance.filter(
-        record => new Date(record.timestamp).toDateString() !== today
+      record => new Date(record.timestamp).toDateString() !== today
     );
+    // Explicitly persist the change to localStorage.
+    localStorage.setItem('face-attendance-records', JSON.stringify(updatedAttendance));
+    // Update state to reflect the change in the UI.
     setAttendance(updatedAttendance);
   };
   
