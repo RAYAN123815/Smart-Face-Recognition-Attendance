@@ -1,0 +1,7 @@
+{
+  "name": "Smart Face Attendance",
+  "description": "A web-based face recognition attendance system. Users can register by capturing multi-angle photos and mark their daily attendance. The app provides a weekly summary and an admin panel for data management. An AI-powered summary of attendance is available via the Gemini API.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
