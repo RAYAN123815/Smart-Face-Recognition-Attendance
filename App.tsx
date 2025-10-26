@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, AttendanceRecord, Tab } from './types';
 import RegisterTab from './components/RegisterTab';
 import AttendTab from './components/AttendTab';
@@ -36,35 +36,31 @@ const App: React.FC = () => {
     localStorage.setItem('face-attendance-records', JSON.stringify(attendance));
   }, [attendance]);
 
-  const handleRegister = (newUser: User) => {
-    setUsers([...users, newUser]);
+  const handleRegister = useCallback((newUser: User) => {
+    setUsers(prevUsers => [...prevUsers, newUser]);
     alert(`User ${newUser.name} registered successfully!`);
     setActiveTab('attend');
-  };
+  }, []);
 
-  const handleMarkAttendance = (newRecord: Omit<AttendanceRecord, 'id'>) => {
-    setAttendance([...attendance, { ...newRecord, id: Date.now().toString() }]);
-  };
+  const handleMarkAttendance = useCallback((newRecord: Omit<AttendanceRecord, 'id'>) => {
+    setAttendance(prevAttendance => [...prevAttendance, { ...newRecord, id: Date.now().toString() }]);
+  }, []);
 
-  const handleClearData = () => {
-    // Explicitly remove data from localStorage to ensure persistence.
+  const handleClearData = useCallback(() => {
     localStorage.removeItem('face-attendance-users');
     localStorage.removeItem('face-attendance-records');
-    // Update state to reflect the change in the UI.
     setUsers([]);
     setAttendance([]);
-  };
+  }, []);
 
-  const handleClearTodaysAttendance = () => {
+  const handleClearTodaysAttendance = useCallback(() => {
     const today = new Date().toDateString();
-    const updatedAttendance = attendance.filter(
-      record => new Date(record.timestamp).toDateString() !== today
+    setAttendance(prevAttendance => 
+      prevAttendance.filter(
+        record => new Date(record.timestamp).toDateString() !== today
+      )
     );
-    // Explicitly persist the change to localStorage.
-    localStorage.setItem('face-attendance-records', JSON.stringify(updatedAttendance));
-    // Update state to reflect the change in the UI.
-    setAttendance(updatedAttendance);
-  };
+  }, []);
   
   const TABS = [
       { id: 'register', label: 'Register', icon: UserPlusIcon },

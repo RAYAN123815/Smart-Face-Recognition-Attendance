@@ -26,18 +26,39 @@ const base64ToGenerativePart = (base64: string) => {
 };
 
 
-export const generateAttendanceSummary = async (userName: string, records: AttendanceRecord[]): Promise<string> => {
+export const generateAttendanceSummary = async (
+    userName: string, 
+    records: AttendanceRecord[],
+    startDate: string,
+    endDate: string
+): Promise<string> => {
   if (!API_KEY) {
     return "AI features are disabled. Please configure your API key.";
   }
 
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-  const attendanceString = days.map(day => {
-    const present = records.some(rec => rec.day === day);
-    return `${day}: ${present ? 'Present' : 'Absent'}`;
-  }).join(', ');
+  if (new Date(startDate) > new Date(endDate)) {
+    return "Invalid date range: Start date cannot be after end date.";
+  }
 
-  const prompt = `User ${userName}'s attendance for the week is as follows: ${attendanceString}. Write a short, one-sentence summary of their attendance. Be encouraging if attendance is good, and gently motivational if it's not.`;
+  const presentDates = new Set(
+    records.map(rec => new Date(rec.timestamp).toDateString())
+  );
+
+  const attendanceEntries: string[] = [];
+  const currentDate = new Date(startDate + 'T00:00:00');
+  const finalDate = new Date(endDate + 'T00:00:00');
+
+  // Loop through the date range
+  while (currentDate <= finalDate) {
+    const isPresent = presentDates.has(currentDate.toDateString());
+    const dateString = currentDate.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+    attendanceEntries.push(`${dateString}: ${isPresent ? 'Present' : 'Absent'}`);
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  const attendanceString = attendanceEntries.join(', ');
+
+  const prompt = `User ${userName}'s attendance from ${startDate} to ${endDate} is as follows: ${attendanceString}. Write a short, one-sentence summary of their attendance for this period. Be encouraging if attendance is good, and gently motivational if it's not.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -121,8 +142,8 @@ export const verifyUserWithAi = async (capturedImageBase64: string, users: User[
 
         console.log(`Final match score for ${user.name}: ${matchScore}`);
 
-        // Require all 3 of the registered images to be a definite match
-        if (matchScore === 3) {
+        // Require at least 2 of the 3 images to be a definite match
+        if (matchScore >= 2) {
             console.log(`AI match CONFIRMED for user: ${user.name}`);
             return user; // Match found
         } else {

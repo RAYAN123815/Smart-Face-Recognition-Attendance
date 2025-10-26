@@ -8,16 +8,26 @@ interface SummaryTabProps {
   attendance: AttendanceRecord[];
 }
 
-const WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-
 const SummaryTab: React.FC<SummaryTabProps> = ({ users, attendance }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Add state for date range, defaulting to the last 7 days
+  const [startDate, setStartDate] = useState<string>(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 6);
+    return date.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+
   const handleUserChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedUserId(e.target.value);
     setAiSummary(null); // Reset AI summary when user changes
+  };
+
+  const handleDateChange = () => {
+    setAiSummary(null); // Reset AI summary when date changes
   };
   
   const handleGetAiSummary = async () => {
@@ -25,24 +35,56 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ users, attendance }) => {
     setIsLoading(true);
     setAiSummary(null);
     const selectedUser = users.find(u => u.id === selectedUserId);
-    const userAttendance = attendance.filter(rec => rec.userId === selectedUserId);
+    
+    // Filter attendance by both user and the selected date range
+    const userAttendance = attendance.filter(rec => {
+        if (rec.userId !== selectedUserId) return false;
+        const recDate = new Date(rec.timestamp);
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T23:59:59');
+        return recDate >= start && recDate <= end;
+    });
     
     if (selectedUser) {
-        const summary = await generateAttendanceSummary(selectedUser.name, userAttendance);
+        // Pass the date range to the service for a context-aware summary
+        const summary = await generateAttendanceSummary(selectedUser.name, userAttendance, startDate, endDate);
         setAiSummary(summary);
     }
     setIsLoading(false);
   };
 
-  const selectedUserAttendance = attendance.filter(rec => rec.userId === selectedUserId);
-  const summaryData = WEEK_DAYS.map(day => {
-    const isPresent = selectedUserAttendance.some(rec => rec.day === day);
-    return { Day: day, Status: isPresent ? '✅ Present' : '❌ Absent' };
-  });
+  // Generate a list of dates and statuses for the selected range
+  const getSummaryData = () => {
+    if (!selectedUserId || !startDate || !endDate || new Date(startDate) > new Date(endDate)) {
+        return [];
+    }
+
+    const userAttendanceForUser = attendance.filter(rec => rec.userId === selectedUserId);
+    const presentDates = new Set(
+      userAttendanceForUser.map(rec => new Date(rec.timestamp).toDateString())
+    );
+
+    const summary = [];
+    const currentDate = new Date(startDate + 'T00:00:00');
+    const finalDate = new Date(endDate + 'T00:00:00');
+
+    while (currentDate <= finalDate) {
+      const isPresent = presentDates.has(currentDate.toDateString());
+      summary.push({
+        // Format date for better readability
+        Date: currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' }),
+        Status: isPresent ? '✅ Present' : '❌ Absent',
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return summary;
+  };
+
+  const summaryData = getSummaryData();
 
   return (
     <div className="p-4 md:p-6 bg-gray-800 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-4 text-cyan-400">Weekly Summary</h2>
+      <h2 className="text-2xl font-bold mb-4 text-cyan-400">Attendance Summary</h2>
       {users.length === 0 ? (
         <p className="text-gray-400">No users registered yet.</p>
       ) : (
@@ -57,31 +99,62 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ users, attendance }) => {
               <option key={user.id} value={user.id}>{user.name}</option>
             ))}
           </select>
+
           {selectedUserId && (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left bg-gray-700 rounded-md">
-                  <thead>
-                    <tr className="bg-gray-900/50">
-                      <th className="p-3">Day</th>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-700/50 p-3 rounded-md">
+                <div>
+                  <label htmlFor="start-date" className="block text-sm font-medium text-gray-300 mb-1">Start Date</label>
+                  <input
+                    id="start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={e => { setStartDate(e.target.value); handleDateChange(); }}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="end-date" className="block text-sm font-medium text-gray-300 mb-1">End Date</label>
+                  <input
+                    id="end-date"
+                    type="date"
+                    value={endDate}
+                    onChange={e => { setEndDate(e.target.value); handleDateChange(); }}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-y-auto max-h-96 border border-gray-700 rounded-md">
+                <table className="w-full text-left bg-gray-700">
+                  <thead className="sticky top-0 bg-gray-900/80 backdrop-blur-sm">
+                    <tr>
+                      <th className="p-3">Date</th>
                       <th className="p-3">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {summaryData.map(item => (
-                      <tr key={item.Day} className="border-t border-gray-600">
-                        <td className="p-3">{item.Day}</td>
+                    {summaryData.length > 0 ? summaryData.map(item => (
+                      <tr key={item.Date} className="border-t border-gray-600">
+                        <td className="p-3 whitespace-nowrap">{item.Date}</td>
                         <td className="p-3">{item.Status}</td>
                       </tr>
-                    ))}
+                    )) : (
+                      <tr>
+                        <td colSpan={2} className="p-4 text-center text-gray-400">
+                          {new Date(startDate) > new Date(endDate) ? "Start date cannot be after end date." : "No attendance data for this period."}
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
+
               <div>
                 <button
                   onClick={handleGetAiSummary}
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 disabled:bg-gray-500"
+                  disabled={isLoading || new Date(startDate) > new Date(endDate)}
+                  className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 disabled:bg-gray-500 disabled:cursor-not-allowed"
                 >
                   <SparklesIcon className="w-5 h-5" />
                   {isLoading ? 'Generating...' : 'Get AI Summary'}
