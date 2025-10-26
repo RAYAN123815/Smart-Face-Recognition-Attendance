@@ -16,6 +16,19 @@
   }
 }
 </script>
+<style>
+  @keyframes pulse-camera {
+    0%, 100% {
+      box-shadow: 0 0 0 0px rgba(56, 189, 248, 0.6);
+    }
+    50% {
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0);
+    }
+  }
+  .animate-pulse-camera {
+    animation: pulse-camera 2s infinite;
+  }
+</style>
 </head>
 <body class="bg-gray-900 text-white">
   <div id="root"></div>

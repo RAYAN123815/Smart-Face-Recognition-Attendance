@@ -133,7 +133,7 @@ const RegisterTab: React.FC<RegisterTabProps> = ({ onRegister, users }) => {
           <div className="bg-gray-700 p-3 rounded-md text-center">
             <h3 className="text-xl font-semibold">{ANGLES[currentAngleIndex].instruction}</h3>
           </div>
-          <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
+          <div className={`relative w-full aspect-video bg-black rounded-lg overflow-hidden ${stream ? 'animate-pulse-camera' : ''}`}>
              <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover"></video>
           </div>
           <canvas ref={canvasRef} className="hidden"></canvas>

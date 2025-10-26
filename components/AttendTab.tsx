@@ -16,6 +16,7 @@ const AttendTab: React.FC<AttendTabProps> = ({ users, attendance, onMarkAttendan
   const [step, setStep] = useState<RecognitionStep>('idle');
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastCapture, setLastCapture] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -40,6 +41,7 @@ const AttendTab: React.FC<AttendTabProps> = ({ users, attendance, onMarkAttendan
       setStream(null);
     }
     setStep('idle');
+    setLastCapture(null);
     setStatus("Ready to mark attendance.");
   };
 
@@ -70,6 +72,7 @@ const AttendTab: React.FC<AttendTabProps> = ({ users, attendance, onMarkAttendan
     canvas.height = video.videoHeight;
     canvas.getContext('2d')?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
     const imageUrl = canvas.toDataURL('image/jpeg');
+    setLastCapture(imageUrl);
 
     // 2. Start verification with AI
     setStep('verifying');
@@ -112,6 +115,7 @@ const AttendTab: React.FC<AttendTabProps> = ({ users, attendance, onMarkAttendan
   
   const handleTryAgain = () => {
     setStep('camera_on');
+    setLastCapture(null);
     setStatus("Camera is active. Look at the camera and capture.");
     setError(null);
   };
@@ -134,7 +138,7 @@ const AttendTab: React.FC<AttendTabProps> = ({ users, attendance, onMarkAttendan
       case 'camera_on':
         return (
           <>
-            <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
+            <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden animate-pulse-camera">
                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover"></video>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -153,9 +157,14 @@ const AttendTab: React.FC<AttendTabProps> = ({ users, attendance, onMarkAttendan
         );
       case 'verifying':
         return (
-          <div className="w-full aspect-video bg-black rounded-lg flex flex-col items-center justify-center space-y-4">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-400"></div>
-            <p className="text-lg text-cyan-400">Verifying with AI...</p>
+          <div className="relative w-full aspect-video bg-black rounded-lg flex flex-col items-center justify-center space-y-4 overflow-hidden">
+             {lastCapture && (
+                <img src={lastCapture} alt="Verifying face" className="absolute top-0 left-0 w-full h-full object-cover filter blur-md" />
+             )}
+             <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col items-center justify-center space-y-4 z-10">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-400"></div>
+                <p className="text-lg text-white drop-shadow-lg">Verifying with AI...</p>
+             </div>
           </div>
         );
       case 'success':
