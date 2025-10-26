@@ -67,37 +67,66 @@ export const verifyUserWithAi = async (capturedImageBase64: string, users: User[
         return null;
     }
 
-    // Sequentially check each user. In a production scenario, you might want a more optimized approach.
-    for (const user of users) {
-        console.log(`Verifying against user: ${user.name}`);
-        const registeredImagePart = base64ToGenerativePart(user.images.front);
-        if (!registeredImagePart) {
-            console.error(`Invalid registered image for user ${user.name}`);
-            continue; // Skip this user
-        }
-
-        const prompt = "Are these two images of the same person? Answer with only the word 'yes' or 'no'.";
+    // Helper function for a single pairwise comparison
+    const compareImages = async (imageA: any, imageB: any, description: string): Promise<boolean> => {
+        const prompt = "You are a highly accurate face verification system. Is the person in 'Image A' the *exact same person* as in 'Image B'? Do not be lenient. If there is any doubt at all, respond 'no'. Your entire response must be a single word: either 'yes' or 'no'.";
 
         try {
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: { parts: [
-                    {text: prompt},
-                    capturedImagePart, 
-                    registeredImagePart
+                    { text: prompt },
+                    { text: "\n--- Image A ---" },
+                    imageA,
+                    { text: "\n--- Image B ---" },
+                    imageB,
                 ]},
             });
-            
-            const resultText = response.text.trim().toLowerCase();
-            console.log(`AI response for ${user.name}: "${resultText}"`);
-
-            if (resultText.includes('yes')) {
-                console.log(`AI match found for user: ${user.name}`);
-                return user; // Match found
-            }
+            const resultText = response.text.trim().toLowerCase().replace(/[.,!]/g, '');
+            console.log(`AI comparison result for ${description}: "${resultText}"`);
+            return resultText === 'yes';
         } catch (error) {
-            console.error(`Error verifying user ${user.name} with Gemini:`, error);
-            // Continue to the next user even if one call fails
+            console.error(`Error during AI comparison for ${description}:`, error);
+            return false; // Treat errors as a non-match
+        }
+    };
+
+    // Sequentially check each user.
+    for (const user of users) {
+        console.log(`--- Verifying against user: ${user.name} ---`);
+        
+        const registeredImageParts = {
+            front: base64ToGenerativePart(user.images.front),
+            left: base64ToGenerativePart(user.images.left),
+            right: base64ToGenerativePart(user.images.right)
+        };
+
+        if (!registeredImageParts.front || !registeredImageParts.left || !registeredImageParts.right) {
+            console.error(`One or more registered images are invalid for user ${user.name}`);
+            continue; // Skip this user
+        }
+
+        let matchScore = 0;
+
+        // Compare captured image against each of the three registered images
+        if (await compareImages(capturedImagePart, registeredImageParts.front, `${user.name} - Front`)) {
+            matchScore++;
+        }
+        if (await compareImages(capturedImagePart, registeredImageParts.left, `${user.name} - Left`)) {
+            matchScore++;
+        }
+        if (await compareImages(capturedImagePart, registeredImageParts.right, `${user.name} - Right`)) {
+            matchScore++;
+        }
+
+        console.log(`Final match score for ${user.name}: ${matchScore}`);
+
+        // Require at least 2 of the 3 images to be a definite match
+        if (matchScore >= 2) {
+            console.log(`AI match CONFIRMED for user: ${user.name}`);
+            return user; // Match found
+        } else {
+            console.log(`AI match FAILED for user: ${user.name}`);
         }
     }
 
