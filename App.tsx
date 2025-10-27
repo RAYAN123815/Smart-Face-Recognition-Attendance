@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React, { useState } from 'react';
 import { User, AttendanceRecord, Tab } from './types';
 import RegisterTab from './components/RegisterTab';
 import AttendTab from './components/AttendTab';
@@ -9,59 +10,112 @@ import { UserPlusIcon, CameraIcon, CalendarDaysIcon, WrenchScrewdriverIcon } fro
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('register');
+  
   const [users, setUsers] = useState<User[]>(() => {
     try {
-      const savedUsers = localStorage.getItem('face-attendance-users');
+      const savedUsers = window.localStorage.getItem('face-attendance-users');
       return savedUsers ? JSON.parse(savedUsers) : [];
     } catch (error) {
-      console.error("Failed to parse users from localStorage", error);
+      console.error("Failed to load users from localStorage", error);
       return [];
     }
   });
+
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => {
     try {
-      const savedAttendance = localStorage.getItem('face-attendance-records');
+      const savedAttendance = window.localStorage.getItem('face-attendance-records');
       return savedAttendance ? JSON.parse(savedAttendance) : [];
     } catch (error) {
-      console.error("Failed to parse attendance from localStorage", error);
+      console.error("Failed to load attendance from localStorage", error);
       return [];
     }
   });
 
-  useEffect(() => {
-    localStorage.setItem('face-attendance-users', JSON.stringify(users));
-  }, [users]);
+  // State for AdminTab is now managed here
+  const [userToDeleteId, setUserToDeleteId] = useState<string>('');
 
-  useEffect(() => {
-    localStorage.setItem('face-attendance-records', JSON.stringify(attendance));
-  }, [attendance]);
+  const handleRegister = (newUser: User) => {
+    const newUsers = [...users, newUser];
+    try {
+      window.localStorage.setItem('face-attendance-users', JSON.stringify(newUsers));
+      setUsers(newUsers);
+      alert(`User ${newUser.name} registered successfully!`);
+      setActiveTab('attend');
+    } catch (error) {
+      console.error("Failed to save users:", error);
+      alert("Error: Could not save user data.");
+    }
+  };
 
-  const handleRegister = useCallback((newUser: User) => {
-    setUsers(prevUsers => [...prevUsers, newUser]);
-    alert(`User ${newUser.name} registered successfully!`);
-    setActiveTab('attend');
-  }, []);
+  const handleMarkAttendance = (newRecord: Omit<AttendanceRecord, 'id'>) => {
+    const newAttendance = [...attendance, { ...newRecord, id: Date.now().toString() }];
+    try {
+        window.localStorage.setItem('face-attendance-records', JSON.stringify(newAttendance));
+        setAttendance(newAttendance);
+    } catch (error) {
+        console.error("Failed to save attendance:", error);
+        alert("Error: Could not save attendance data.");
+    }
+  };
 
-  const handleMarkAttendance = useCallback((newRecord: Omit<AttendanceRecord, 'id'>) => {
-    setAttendance(prevAttendance => [...prevAttendance, { ...newRecord, id: Date.now().toString() }]);
-  }, []);
+  // --- REBUILT & CENTRALIZED ADMIN ACTIONS ---
 
-  const handleClearData = useCallback(() => {
-    localStorage.removeItem('face-attendance-users');
-    localStorage.removeItem('face-attendance-records');
-    setUsers([]);
-    setAttendance([]);
-  }, []);
+  const handleClearData = () => {
+    if (window.confirm("⚠️ Are you sure you want to delete ALL data? This includes all registered users and all attendance records. This action cannot be undone.")) {
+      try {
+        window.localStorage.removeItem('face-attendance-users');
+        window.localStorage.removeItem('face-attendance-records');
+        setUsers([]);
+        setAttendance([]);
+        alert("All application data has been successfully cleared.");
+      } catch (error) {
+        console.error("Failed to clear data:", error);
+        alert("Error: Could not clear application data.");
+      }
+    }
+  };
 
-  const handleClearTodaysAttendance = useCallback(() => {
-    const today = new Date().toDateString();
-    setAttendance(prevAttendance => 
-      prevAttendance.filter(
-        record => new Date(record.timestamp).toDateString() !== today
-      )
-    );
-  }, []);
+  const handleClearTodaysAttendance = () => {
+    if (window.confirm("Are you sure you want to clear only today's attendance records? User registrations will not be affected.")) {
+      try {
+        const today = new Date().toDateString();
+        const newAttendance = attendance.filter(
+            record => new Date(record.timestamp).toDateString() !== today
+        );
+        window.localStorage.setItem('face-attendance-records', JSON.stringify(newAttendance));
+        setAttendance(newAttendance);
+        alert("Today's attendance records have been cleared.");
+      } catch (error) {
+        console.error("Failed to clear today's attendance:", error);
+        alert("Error: Could not clear today's attendance data.");
+      }
+    }
+  };
   
+  const handleDeleteUser = (userId: string) => {
+    const userToDelete = users.find(u => u.id === userId);
+    if (!userToDelete) return;
+
+    if (window.confirm(`Are you sure you want to delete ${userToDelete.name}? This will remove the user and all their attendance records permanently.`)) {
+      try {
+        const newUsers = users.filter(user => user.id !== userId);
+        const newAttendance = attendance.filter(record => record.userId !== userId);
+
+        window.localStorage.setItem('face-attendance-users', JSON.stringify(newUsers));
+        window.localStorage.setItem('face-attendance-records', JSON.stringify(newAttendance));
+
+        setUsers(newUsers);
+        setAttendance(newAttendance);
+        setUserToDeleteId(''); // Reset the dropdown selection atomically
+
+        alert(`User "${userToDelete.name}" and all associated data have been deleted.`);
+      } catch (error) {
+        console.error("Failed to delete user:", error);
+        alert("Error: Could not delete user data.");
+      }
+    }
+  };
+
   const TABS = [
       { id: 'register', label: 'Register', icon: UserPlusIcon },
       { id: 'attend', label: 'Attendance', icon: CameraIcon },
@@ -98,7 +152,16 @@ const App: React.FC = () => {
           {activeTab === 'register' && <RegisterTab onRegister={handleRegister} users={users}/>}
           {activeTab === 'attend' && <AttendTab users={users} attendance={attendance} onMarkAttendance={handleMarkAttendance} />}
           {activeTab === 'summary' && <SummaryTab users={users} attendance={attendance} />}
-          {activeTab === 'admin' && <AdminTab onClearData={handleClearData} onClearTodaysAttendance={handleClearTodaysAttendance} />}
+          {activeTab === 'admin' && (
+            <AdminTab 
+              users={users} 
+              onClearData={handleClearData} 
+              onClearTodaysAttendance={handleClearTodaysAttendance} 
+              onDeleteUser={handleDeleteUser}
+              selectedUserId={userToDeleteId}
+              onSelectedUserChange={setUserToDeleteId}
+            />
+          )}
         </main>
         
         <TodaysAttendance attendance={attendance} />
