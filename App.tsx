@@ -134,11 +134,15 @@ const App: React.FC = () => {
         </header>
 
         <nav className="mb-6">
-            <div className="flex flex-wrap border-b border-gray-700">
+            <div className="flex flex-wrap border-b border-gray-700" role="tablist" aria-label="Main navigation">
                 {TABS.map(tab => (
                     <button
                         key={tab.id}
+                        id={`${tab.id}-tab`}
                         onClick={() => setActiveTab(tab.id as Tab)}
+                        role="tab"
+                        aria-selected={activeTab === tab.id}
+                        aria-controls={`${tab.id}-panel`}
                         className={`flex items-center gap-2 px-4 py-3 font-semibold transition duration-300 border-b-2 ${activeTab === tab.id ? 'text-cyan-400 border-cyan-400' : 'text-gray-400 border-transparent hover:text-white hover:border-gray-500'}`}
                     >
                         <tab.icon className="w-5 h-5" />
@@ -149,19 +153,21 @@ const App: React.FC = () => {
         </nav>
 
         <main>
-          {activeTab === 'register' && <RegisterTab onRegister={handleRegister} users={users}/>}
-          {activeTab === 'attend' && <AttendTab users={users} attendance={attendance} onMarkAttendance={handleMarkAttendance} />}
-          {activeTab === 'summary' && <SummaryTab users={users} attendance={attendance} />}
-          {activeTab === 'admin' && (
-            <AdminTab 
-              users={users} 
-              onClearData={handleClearData} 
-              onClearTodaysAttendance={handleClearTodaysAttendance} 
-              onDeleteUser={handleDeleteUser}
-              selectedUserId={userToDeleteId}
-              onSelectedUserChange={setUserToDeleteId}
-            />
-          )}
+          <div role="tabpanel" id={`${activeTab}-panel`} aria-labelledby={`${activeTab}-tab`}>
+            {activeTab === 'register' && <RegisterTab onRegister={handleRegister} users={users}/>}
+            {activeTab === 'attend' && <AttendTab users={users} attendance={attendance} onMarkAttendance={handleMarkAttendance} />}
+            {activeTab === 'summary' && <SummaryTab users={users} attendance={attendance} />}
+            {activeTab === 'admin' && (
+              <AdminTab 
+                users={users} 
+                onClearData={handleClearData} 
+                onClearTodaysAttendance={handleClearTodaysAttendance} 
+                onDeleteUser={handleDeleteUser}
+                selectedUserId={userToDeleteId}
+                onSelectedUserChange={setUserToDeleteId}
+              />
+            )}
+          </div>
         </main>
         
         <TodaysAttendance attendance={attendance} />

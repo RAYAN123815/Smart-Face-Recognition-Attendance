@@ -140,16 +140,20 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ users, attendance }) => {
         <p className="text-gray-400">No users registered yet.</p>
       ) : (
         <div className="space-y-4">
-          <select
-            value={selectedUserId}
-            onChange={handleUserChange}
-            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          >
-            <option value="">-- Select a User --</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>{user.name}</option>
-            ))}
-          </select>
+          <div>
+            <label htmlFor="user-select" className="sr-only">Select a User</label>
+            <select
+              id="user-select"
+              value={selectedUserId}
+              onChange={handleUserChange}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="">-- Select a User --</option>
+              {users.map(user => (
+                <option key={user.id} value={user.id}>{user.name}</option>
+              ))}
+            </select>
+          </div>
 
           {selectedUserId && (
             <>

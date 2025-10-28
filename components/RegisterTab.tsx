@@ -23,27 +23,41 @@ const RegisterTab: React.FC<RegisterTabProps> = ({ onRegister, users }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const startCamera = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setStream(mediaStream);
-    // FIX: Explicitly typing the 'err' parameter in the catch block to resolve a potential parsing issue that caused numerous scope-related errors.
-    } catch (err: any) {
-      console.error("Camera access denied:", err);
-      setError("Camera access is required. Please enable it in your browser settings.");
-    }
-  };
-
   useEffect(() => {
-    if (isRegistering) {
-      startCamera();
-    } else {
+    // This effect manages the camera stream based on the isRegistering state.
+    if (!isRegistering) {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
         setStream(null);
       }
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // isRegistering is true, so we need to start the camera.
+    let active = true;
+    const startCamera = async () => {
+      try {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (active) {
+          setStream(mediaStream);
+        } else {
+          // Cleanup if component unmounted or isRegistering changed before camera started
+          mediaStream.getTracks().forEach(track => track.stop());
+        }
+      } catch (err) {
+        console.error("Camera access denied:", err);
+        if (active) {
+          setError("Camera access is required. Please enable it in your browser settings.");
+        }
+      }
+    };
+    
+    startCamera();
+    
+    return () => {
+      // This cleanup runs when isRegistering changes from true to false, or on unmount.
+      active = false;
+    };
   }, [isRegistering]);
 
   useEffect(() => {
@@ -96,9 +110,6 @@ const RegisterTab: React.FC<RegisterTabProps> = ({ onRegister, users }) => {
         const newUser: User = {
           id: Date.now().toString(),
           name: regName.trim(),
-          // Fix: The type assertion `Required<typeof newImages>` was failing because `typeof newImages` was being inferred as `any`.
-          // Using `User['images']` is a more direct and robust way to cast the type, as we are certain at this point
-          // that `newImages` has the correct shape.
           images: newImages as User['images'],
         };
         onRegister(newUser);
@@ -113,13 +124,17 @@ const RegisterTab: React.FC<RegisterTabProps> = ({ onRegister, users }) => {
       <h2 className="text-2xl font-bold mb-4 text-cyan-400">Register New User</h2>
       {!isRegistering ? (
         <div className="space-y-4 max-w-md">
-          <input
-            type="text"
-            value={regName}
-            onChange={handleNameChange}
-            placeholder="Enter full name"
-            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          />
+          <div>
+            <label htmlFor="reg-name" className="sr-only">Full Name</label>
+            <input
+              id="reg-name"
+              type="text"
+              value={regName}
+              onChange={handleNameChange}
+              placeholder="Enter full name"
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+          </div>
           <button
             onClick={handleStartRegistration}
             className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition duration-300"

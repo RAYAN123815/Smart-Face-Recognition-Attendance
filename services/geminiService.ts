@@ -2,11 +2,13 @@ import { GoogleGenAI } from "@google/genai";
 import { User, AttendanceRecord } from '../types';
 
 const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
+
+// Only initialize the AI client if the API key is available.
+const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+
+if (!ai) {
   console.warn("Gemini API key not found. AI features will be disabled.");
 }
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 /**
  * Converts a base64 image string to a GenerativePart object for the Gemini API.
@@ -32,7 +34,7 @@ export const generateAttendanceSummary = async (
     startDate: string,
     endDate: string
 ): Promise<string> => {
-  if (!API_KEY) {
+  if (!ai) {
     return "AI features are disabled. Please configure your API key.";
   }
 
@@ -74,7 +76,7 @@ export const generateAttendanceSummary = async (
 
 
 export const verifyUserWithAi = async (capturedImageBase64: string, users: User[]): Promise<User | null> => {
-    if (!API_KEY) {
+    if (!ai) {
         console.error("Cannot verify with AI: API key is not configured.");
         return null;
     }

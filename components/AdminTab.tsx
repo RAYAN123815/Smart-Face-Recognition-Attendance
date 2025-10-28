@@ -20,12 +20,6 @@ const AdminTab: React.FC<AdminTabProps> = ({
   onSelectedUserChange 
 }) => {
 
-  const handleDeleteUser = () => {
-    if (!selectedUserId) return;
-    onDeleteUser(selectedUserId);
-  };
-
-
   return (
     <div className="p-4 md:p-6 bg-gray-800 rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-6 text-cyan-400">Admin Panel</h2>
@@ -40,7 +34,9 @@ const AdminTab: React.FC<AdminTabProps> = ({
           </p>
           {users.length > 0 ? (
             <div className="flex items-center gap-4 flex-wrap mt-3">
+              <label htmlFor="user-delete-select" className="sr-only">Select a User to Delete</label>
               <select
+                id="user-delete-select"
                 value={selectedUserId}
                 onChange={(e) => onSelectedUserChange(e.target.value)}
                 className="flex-grow px-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -51,7 +47,7 @@ const AdminTab: React.FC<AdminTabProps> = ({
                 ))}
               </select>
               <button
-                onClick={handleDeleteUser}
+                onClick={() => onDeleteUser(selectedUserId)}
                 disabled={!selectedUserId}
                 className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 disabled:bg-gray-500 disabled:cursor-not-allowed"
               >
