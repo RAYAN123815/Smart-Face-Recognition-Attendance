@@ -23,40 +23,40 @@ const RegisterTab: React.FC<RegisterTabProps> = ({ onRegister, users }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Consolidated and robust useEffect for camera management.
   useEffect(() => {
-    // This effect manages the camera stream based on the isRegistering state.
     if (!isRegistering) {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-      }
-      return;
+      return; // Don't do anything if we're not in the registration process.
     }
 
-    // isRegistering is true, so we need to start the camera.
     let active = true;
-    const startCamera = async () => {
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    let mediaStream: MediaStream | null = null;
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(ms => {
         if (active) {
-          setStream(mediaStream);
+          mediaStream = ms;
+          setStream(ms);
         } else {
-          // Cleanup if component unmounted or isRegistering changed before camera started
-          mediaStream.getTracks().forEach(track => track.stop());
+          // If not active anymore, stop the stream we just got.
+          ms.getTracks().forEach(track => track.stop());
         }
-      } catch (err) {
+      })
+      .catch(err => {
         console.error("Camera access denied:", err);
         if (active) {
           setError("Camera access is required. Please enable it in your browser settings.");
+          setIsRegistering(false); // Go back to the previous state on error
         }
-      }
-    };
-    
-    startCamera();
-    
+      });
+
+    // Return a cleanup function that runs when `isRegistering` becomes false or the component unmounts.
     return () => {
-      // This cleanup runs when isRegistering changes from true to false, or on unmount.
       active = false;
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
+      setStream(null);
     };
   }, [isRegistering]);
 
